@@ -16,6 +16,9 @@ Data file of daily case counts by country from [COVID2019.app](https://docs.goog
 * R ver. 3.6.1
 * {LaplacesDemon} ver. 16.1.1
 * {repr} ver. 1.0.1
+* {IRkernel} ver. 1.0.2
+* Python ver. 3.7.4
+* Jupyter Notebook ver. 4.5.0
 
 ## Authors
 
