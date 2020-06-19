@@ -116,7 +116,11 @@ ocases=WHO_data$ongoingbranches
 # cluster size inference
 # for extinct clusters
 library(VGAM)
-llextinct<-function(icases,lcases,R0,k){
+library(matrixStats)
+llextinct<-function(icases,lcases,R0,k,importcontrol=F){
+    if(importcontrol){# For Sensitivity: different R0 for imported cases
+        return(llextinct_importcontrol(icases,lcases,R0,k))
+    }
     if(length(icases)==0)return(0)
     tcases=lcases+icases
     lls=log(k)+log(icases)-log((k+1)*tcases-icases)+lchoose((k+1)*tcases-icases,tcases-icases)+(tcases-icases)*(log(R0)-log(k))-((k+1)*tcases-icases)*log(1+R0/k)
@@ -124,14 +128,14 @@ llextinct<-function(icases,lcases,R0,k){
 }
 
 # only use the number as the lower bound of cluster size for ongoing countries
-lltruncate<-function(icases,lcases,R0,k){
+lltruncate<-function(icases,lcases,R0,k,importcontrol=F){
     if(length(icases)==0) return(0)
     ll=0
     for(i in 1:length(icases)){
         lprob=0
         if(icases[i]==0||lcases[i]==0)next
         for(x in 0:(lcases[i]-1)){
-            lle=llextinct(icases[i],x,R0,k)
+            lle=llextinct(icases[i],x,R0,k,importcontrol)
             if(lprob<lle){
                 lprob=-Inf
                 break
@@ -143,13 +147,13 @@ lltruncate<-function(icases,lcases,R0,k){
     return(ll)
 }
 
-lltotal<-function(R0invk,icases,lcases,isextinct){
+lltotal<-function(R0invk,icases,lcases,isextinct,importcontrol=F){
     R0=R0invk[1];k=1/R0invk[2]
-    llextinct(icases[isextinct],lcases[isextinct],R0,k)+lltruncate(icases[!isextinct],lcases[!isextinct],R0,k)
+    llextinct(icases[isextinct],lcases[isextinct],R0,k,importcontrol)+lltruncate(icases[!isextinct],lcases[!isextinct],R0,k,importcontrol)
 }
-lltotal_R0<-function(invk,icases,lcases,isextinct,R0){
+lltotal_R0<-function(invk,icases,lcases,isextinct,R0,importcontrol=F){
     k=1/invk
-    llextinct(icases[isextinct],lcases[isextinct],R0,k)+lltruncate(icases[!isextinct],lcases[!isextinct],R0,k)
+    llextinct(icases[isextinct],lcases[isextinct],R0,k,importcontrol)+lltruncate(icases[!isextinct],lcases[!isextinct],R0,k,importcontrol)
 }
 ```
 
@@ -318,6 +322,50 @@ barplot(c(dnbinom(0:20,0.1,mu=1.5),NA,pnbinom(20,0.1,mu=1.5,lower.tail=F)),ylim=
 legend("topright",c("R0 = 1.5  ","k = 0.1  "),bty="n")
 barplot(c(dnbinom(0:20,0.1,mu=5),NA,pnbinom(20,0.1,mu=5,lower.tail=F)),ylim=c(0,0.8),border="red",col=NA,names.arg=c(0:20,NA,">20"),xlab="the number of secondary cases",ylab="probability")
 legend("topright",c("R0 = 5  ","k = 0.1  "),bty="n")
+```
+
+## Smaller reproduction number for imported cases
+Imported cases may exhibit a smaller reproduction number due to intervention measures such as isolation/quarantine.
+
+```{r}
+llextinct_importcontrol<-function(icases,lcases,R0,k){
+    if(length(icases)==0)return(0)
+    tcases=lcases+icases
+    lls=tcases*0
+    for(i in 1:length(lls)){
+        ls=sapply(0:lcases[i],function(ioffsprings){
+            ll=dnbinom(ioffsprings,k*icases[i],mu=R0[1]*icases[i],log=T)+llextinct(ioffsprings,lcases[i]-ioffsprings,R0[2],k,F)
+            return(ll)
+        })
+        lls[i]=lls[i]+logSumExp(ls)
+    }
+    sum(lls,na.rm=T)
+}
+```
+
+```{r}
+Data=list(N=13,mon.names=c("R0_imp","R0_loc","k"),parm.names="invk",R0=c(1,2.5),icases=icases,lcases=lcases,ocases=ocases,isextinct=isextinct)
+Model=function(parm,Data){
+    invk=interval(parm,0)
+    lp=lltotal_R0(invk,Data$icases,Data$lcases,Data$isextinct,Data$R0,T)
+    lp=lp+dnorm(invk,0,10,log=T)
+    return(list(LP=lp,Dev=-2*lp,Monitor=c(Data$R0,1/invk),yhat=NULL,parm=invk))
+}
+R0s=c(0.5,0.8,1.2)
+niter=10000
+set.seed(20)
+mcmcfits=lapply(R0s,function(R0){
+    Data$R0[1]=R0
+    fit=LaplacesDemon(Model=Model,Data=Data,Initial.Values=50,Covar=NULL,Iterations=niter,Status=niter,Thinning=10,Algorithm='HARM',Specs=list(alpha.star=0.2,B=NULL))
+})
+
+k_mcmc=sapply(mcmcfits,function(x){x$Monitor[(niter%/%20):(niter%/%10),3]})
+ll_mcmc=sapply(mcmcfits,function(x){-x$Deviance[(niter%/%20):(niter%/%10)]/2})          
+```
+
+```{r}
+colnames(k_mcmc)=paste("k (R_I = ", c(0.5,0.8,1.2),")")
+apply(k_mcmc,2,quantile,c(0.025,0.5,0.975))
 ```
 
 ### Simulation of underreporting
