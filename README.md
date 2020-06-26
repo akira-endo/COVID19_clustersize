@@ -1,5 +1,5 @@
 # Estimating the amount of superspreading using outbreak sizes of COVID-19 outside China
-Source code accompanying Endo et al. "Estimating the amount of superspreading using outbreak sizes of COVID-19 outside China".
+Source code accompanying Endo et al. "Estimating the amount of superspreading using outbreak sizes of COVID-19 outside China". [https://wellcomeopenresearch.org/articles/5-67](https://wellcomeopenresearch.org/articles/5-67)
 
 ## Main files
 * COVID19_clustersize.ipynb/[.html](https://akira-endo.github.io/COVID19_clustersize/COVID19_clustersize.html):
