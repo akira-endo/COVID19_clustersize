@@ -12,7 +12,7 @@ Data file of daily case counts by country from [COVID2019.app](https://docs.goog
 Supplementary materials (Figures S1-S3 and descriptions)
 ## Licence
 
-[MIT](https://github.com/akira-endo/Intro-PMCMC/blob/master/LICENSE)
+[MIT](https://github.com/akira-endo/COVID19_clustersize/blob/master/LICENSE)
 
 ## Dependencies
 * R ver. 3.6.1
